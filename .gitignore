@@ -28,6 +28,7 @@ hs_err_pid*
 # Sensitive or high-churn files:
 .idea/*
 .iml
+target/*
 
 # CMake
 cmake-build-debug/
