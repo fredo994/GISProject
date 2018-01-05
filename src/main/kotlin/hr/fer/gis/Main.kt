@@ -12,6 +12,10 @@ val log = Logger.getLogger("API")
 val BOOTSTRAP = false
 val dslamColl = Db.getDb().getCollection<DSLAM>(DSLAM_COLLECTION)
 val slapColl = Db.getDb().getCollection<SLAP>(SLAP_COLLECTION)
+val latRange = (-90.0).rangeTo(90.0)
+val longRange = (-180.0).rangeTo(180.0)
+
+
 
 fun bootstrapNeeded():Boolean {
     return BOOTSTRAP &&
@@ -23,18 +27,20 @@ fun bootstrap() {
     dslamColl.createIndex(keys = """{location:"2dsphere"}""")
     log.info("Reading DSLAM data")
 
-    val dslams = CsvReader.readDSLAM(
-            CsvReader.javaClass.getResource("Projekt 5 - DSLAM lokacije.txt").toExternalForm().toString()
-    );
+    val dslams = CsvReader.readDSLAM("Projekt 5 - DSLAM lokacije.txt")
+            .filter{ it.location.coordinates[0] in longRange }
+            .filter{ it.location.coordinates[1] in latRange }
+
     log.info("Inserting DSLAM data into mongo")
     dslamColl.insertMany(dslams)
 
     slapColl.drop()
     slapColl.createIndex(keys = """{location:"2dsphere"}""")
     log.info("Reading SLAP data")
-    val slaps = CsvReader.readSLAP(
-            CsvReader.javaClass.getResource("SLAP-export-2017.07.24.txt").toExternalForm().toString()
-    )
+    val slaps = CsvReader.readSLAP("SLAP-export-2017.07.24.txt")
+            .filter{ it.location.coordinates[0] in longRange }
+            .filter{ it.location.coordinates[1] in latRange }
+
     log.info("Storing SLAP data in mongo")
     slapColl.insertMany(slaps)
 }
