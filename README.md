@@ -61,7 +61,7 @@ Api endpoints:
     - response:
         ```
         {
-            "name"          : String,
+            "name"          ¨: String,
             "longitude"     : Double,
             "latitude"      : Double,
             "numberOfUsers" : Int 
