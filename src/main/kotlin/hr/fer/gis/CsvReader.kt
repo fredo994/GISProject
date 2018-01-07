@@ -1,10 +1,6 @@
 package hr.fer.gis
 
-import hr.fer.gis.CsvReader.readCSV
 import org.joda.time.format.DateTimeFormat
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.util.*
 
 
 //2017.07.23 00:20:58.998
@@ -12,24 +8,31 @@ private val DTF = DateTimeFormat.forPattern("yyy.MM.dd HH:mm:ss.SSS")
 
 data class Location(val type: String = "Point", val coordinates: DoubleArray) {
     constructor(long: Double, lat: Double) : this(coordinates = doubleArrayOf(long, lat))
+    fun longitude() = coordinates[0]
+    fun latitude() = coordinates[1]
+}
+
+enum class LightningStrike {
+    CLOUD_EARTH,
+    CLOUD_CLOUD
 }
 
 data class SLAP(
-        val vrijeme_utc: Date,
-        val tip_id: Int,
-        val struja: Double,
-        val visina: Int,
-        val greska: Int,
+        val timestamp: Long,
+        val type: LightningStrike,
+        val amperage: Double,
+        val height: Int,
+        val locationError: Int,
         val location: Location
 )
 
 data class DSLAM(
-        val naziv: String,
-        val brojKorisnika: Int,
+        val name: String,
+        val userCount: Int,
         val location: Location
 )
 
-fun String.toDate() = DTF.parseDateTime(this).toDate()
+fun String.toDateTime() = DTF.parseDateTime(this)
 
 fun String.safeToDouble() = this.replace(',', '.', true).toDouble()
 
@@ -46,8 +49,12 @@ object CsvReader {
             .map { it.split("|") }
             .map {
                 SLAP(
-                        it[0].toDate(),
-                        it[1].toInt(),
+                        it[0].toDateTime().millis,
+                        when (it[1].toInt()) {
+                            1 -> LightningStrike.CLOUD_EARTH
+                            2 -> LightningStrike.CLOUD_CLOUD
+                            else -> throw RuntimeException()
+                        },
                         it[2].safeToDouble(),
                         it[3].toInt(),
                         it[4].toInt(),
@@ -62,7 +69,6 @@ object CsvReader {
     fun readDSLAM(fileName: String) = readCSV(fileName).drop(1)
             .map { it.split(Regex("\\s+")) }
             .map {
-                println(it)
                 DSLAM(
                         it[0],
                         it[1].toInt(),
