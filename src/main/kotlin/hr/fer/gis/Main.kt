@@ -20,7 +20,7 @@ val latRange = (-90.0).rangeTo(90.0)
 val longRange = (-180.0).rangeTo(180.0)
 
 fun bootstrapNeeded(): Boolean {
-    return Db.getDb().getCollection(DSLAM_COLLECTION).count() != 0L && Db.getDb().getCollection(SLAP_COLLECTION).count() != 0L
+    return Db.getDb().getCollection(DSLAM_COLLECTION).count() == 0L || Db.getDb().getCollection(SLAP_COLLECTION).count() == 0L
 }
 
 fun bootstrap() {
