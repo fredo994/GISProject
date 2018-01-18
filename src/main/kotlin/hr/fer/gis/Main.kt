@@ -11,6 +11,7 @@ import com.mongodb.client.model.geojson.Position
 import org.litote.kmongo.* //NEEDED! import KMongo extensions
 import spark.kotlin.RouteHandler
 import spark.kotlin.ignite
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 val log = Logger.getLogger("API")!!
@@ -56,7 +57,7 @@ data class LightningCheckResp(val hit: Boolean)
 fun checkIfLightningExists(checkReq: LightningCheckReq): LightningCheckResp {
     val exists = slapColl.find(
             and(
-                    gte("timestamp", now() - TWO_HOURS),
+                    gte("timestamp", now() - THREE_MINUTES),
                     near(
                             "location",
                             Point(Position(checkReq.longitude, checkReq.latitude)),
@@ -77,6 +78,7 @@ fun getLightningStrikes(req: LightningStrikesReq): List<LightningStrikeRespEntry
     return slapColl.find(
             and(
                     gte("timestamp", req.timestamp),
+                    lt("timestamp", req.timestamp + TimeUnit.MINUTES.toMillis(10)),
                     near(
                             "location",
                             Point(Position(req.longitude, req.latitude)),
