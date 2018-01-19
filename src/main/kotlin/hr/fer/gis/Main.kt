@@ -10,7 +10,6 @@ import com.mongodb.client.model.Filters.*
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.geojson.Point
 import com.mongodb.client.model.geojson.Position
-import kotlinx.coroutines.experimental.launch
 import org.litote.kmongo.createIndex
 import org.litote.kmongo.getCollection
 import org.litote.kmongo.toList
@@ -135,9 +134,8 @@ fun getPort() = System.getenv(HTTP_PORT)?.toInt() ?: 8080
 
 fun main(args: Array<String>) {
     if (bootstrapNeeded()) {
-        launch {
-            // Start filling mongo in background
-            bootstrap()
+        with(Thread { bootstrap() }) {
+            start()
         }
     }
     val port = getPort()
