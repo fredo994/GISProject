@@ -1,6 +1,10 @@
 package hr.fer.gis
 
+import hr.fer.gis.CsvReader.readCSV
 import org.joda.time.format.DateTimeFormat
+import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 
 //2017.07.23 00:20:58.998
@@ -38,13 +42,12 @@ fun String.safeToDouble() = this.replace(',', '.', true).toDouble()
 
 object CsvReader {
 
-    fun readCSV(fileName: String) = CsvReader.javaClass.classLoader.getResource(fileName)
-            .readText()
+    fun readCSV(fileName: String) = BufferedReader(InputStreamReader(javaClass.classLoader.getResourceAsStream(fileName)))
             .lines()
             .filter { !it.isEmpty() }
             .filter { !it.startsWith("--") }
 
-    fun readSLAP(fileName: String) = readCSV(fileName).drop(1)
+    fun readSLAP(fileName: String) = readCSV(fileName).skip(1)
             .filter { !it.startsWith("vrijeme") }
             .map { it.split("|") }
             .map {
@@ -66,7 +69,7 @@ object CsvReader {
             }
 
 
-    fun readDSLAM(fileName: String) = readCSV(fileName).drop(1)
+    fun readDSLAM(fileName: String) = readCSV(fileName).skip(1)
             .map { it.split(Regex("\\s+")) }
             .map {
                 DSLAM(
@@ -77,7 +80,7 @@ object CsvReader {
                                 it[3].safeToDouble()
                         )
                 )
-            }.toList()
+            }
 
 
 }

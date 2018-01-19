@@ -1,27 +1,36 @@
+@file:JvmName("Main")
 package hr.fer.gis
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.common.collect.Iterables
 import com.mongodb.client.model.Filters.*
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.geojson.Point
 import com.mongodb.client.model.geojson.Position
 import org.litote.kmongo.* //NEEDED! import KMongo extensions
-import spark.kotlin.RouteHandler
-import spark.kotlin.ignite
+import spark.kotlin.*
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
+import java.util.stream.Stream
 
-val log = Logger.getLogger("API")!!
-val dslamColl = Db.getDb().getCollection<DSLAM>(DSLAM_COLLECTION)
-val slapColl = Db.getDb().getCollection<SLAP>(SLAP_COLLECTION)
-val latRange = (-90.0).rangeTo(90.0)
-val longRange = (-180.0).rangeTo(180.0)
+private val log = Logger.getLogger("API")!!
+private val dslamColl = Db.getDb().getCollection<DSLAM>(DSLAM_COLLECTION)
+private val slapColl = Db.getDb().getCollection<SLAP>(SLAP_COLLECTION)
+private val latRange = (-90.0).rangeTo(90.0)
+private val longRange = (-180.0).rangeTo(180.0)
 
 fun bootstrapNeeded(): Boolean {
     return Db.getDb().getCollection(DSLAM_COLLECTION).count() == 0L || Db.getDb().getCollection(SLAP_COLLECTION).count() == 0L
+}
+
+fun <T> toIterable(stream: Stream<T>): Iterable<T> {
+    return object : Iterable<T> {
+        override fun iterator(): Iterator<T> = stream.iterator()
+
+    }
 }
 
 fun bootstrap() {
@@ -29,24 +38,22 @@ fun bootstrap() {
     dslamColl.createIndex(keys = """{location:"2dsphere"}""")
     log.info("Reading DSLAM data")
 
-    val dslams = CsvReader.readDSLAM("Projekt 5 - DSLAM lokacije.txt")
-            .filter { it.location.latitude() in latRange }
-            .filter { it.location.longitude() in longRange }
-
     log.info("Inserting DSLAM data into mongo")
-    dslamColl.insertMany(dslams)
+    Iterables.partition(toIterable(CsvReader.readDSLAM("Projekt 5 - DSLAM lokacije.txt")
+            .filter { it.location.latitude() in latRange }
+            .filter { it.location.longitude() in longRange }), 100
+    ).forEach { dslamColl.insertMany(it) }
+
 
     slapColl.drop()
     slapColl.createIndex(keys = """{timestamp:1}""")
     slapColl.createIndex(keys = """{location:"2dsphere"}""")
     slapColl.createIndex(keys = """{timestamp:1, location:"2dsphere"}""")
     log.info("Reading SLAP data")
-    val slaps = CsvReader.readSLAP("SLAP-export-2017.07.24.txt")
+    Iterables.partition(toIterable(CsvReader.readSLAP("SLAP-export-2017.07.24.txt")
             .filter { it.location.latitude() in latRange }
-            .filter { it.location.longitude() in longRange }
-
-    log.info("Storing SLAP data in mongo")
-    slapColl.insertMany(slaps)
+            .filter { it.location.longitude() in longRange }), 100)
+            .forEach { slapColl.insertMany(it) }
 }
 
 fun now() = System.currentTimeMillis()
@@ -120,17 +127,23 @@ fun <O> time(name: String = "", func: () -> O): O {
     return result
 }
 
+fun getPort() = System.getenv(HTTP_PORT)?.toInt() ?: 8080
+
 fun main(args: Array<String>) {
     if (bootstrapNeeded()) {
         bootstrap()
     }
+    val port = getPort()
+    log.info("Got port $port")
+
     val server = ignite()
-    server.port(8080)
+    server.port(port)
     val mapper = jacksonObjectMapper()
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     with(server) {
         post(path = "/check", accepts = "application/json") { json(mapper, time("check") { checkIfLightningExists(bodyRequest(mapper)) })  }
         post(path = "/hits", accepts = "application/json")  { json(mapper, time("hits") { getLightningStrikes(bodyRequest(mapper)) })  }
         post(path = "/dslam", accepts = "application/json") { json(mapper, time("dslam") { getDSLAMStations(bodyRequest(mapper)) })  }
+        get(path = "/") { "Hello World" }
     }
 }
