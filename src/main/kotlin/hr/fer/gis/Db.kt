@@ -7,7 +7,6 @@ import java.util.logging.Logger
 
 object Db {
     private val log =  Logger.getLogger("DB")!!
-
     private val client: MongoClient
     private val db: String
 
@@ -24,5 +23,5 @@ object Db {
         }
     }
 
-    fun getDb() = client.getDatabase(DEFAULT_DB)
+    fun getDb() = client.getDatabase(db)
 }
