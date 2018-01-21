@@ -1,4 +1,5 @@
 @file:JvmName("Main")
+
 package hr.fer.gis
 
 import com.fasterxml.jackson.databind.DeserializationFeature
@@ -116,6 +117,28 @@ fun getDSLAMStations(req: DSLAMStationsReq): List<DSLAMStationRespEntry> {
     }.toList()
 }
 
+
+data class LightningAddReq(
+        val longitude: Double,
+        val latitude: Double,
+        val type: LightningStrike,
+        val amperage: Double,
+        val height: Int,
+        val locationError: Int = 0)
+
+fun addLightning(req: LightningAddReq): SLAP {
+    val strike = SLAP(
+            timestamp = now(),
+            type = req.type,
+            amperage = req.amperage,
+            height = req.height,
+            locationError = req.locationError,
+            location = Location (req.longitude, req.latitude)
+    )
+    slapColl.insertOne(strike)
+    return strike
+}
+
 inline fun <reified T : Any> RouteHandler.bodyRequest(mapper: ObjectMapper): T = mapper.readValue(request.body())
 fun RouteHandler.json(mapper: ObjectMapper, value: Any): String {
     response.header("Content-Type", "application/json")
@@ -132,6 +155,7 @@ fun <O> time(name: String = "", func: () -> O): O {
 
 fun getPort() = System.getenv(HTTP_PORT)?.toInt() ?: 8080
 
+
 fun main(args: Array<String>) {
     if (bootstrapNeeded()) {
         with(Thread { bootstrap() }) {
@@ -142,13 +166,14 @@ fun main(args: Array<String>) {
     log.info("Got port $port")
 
     val server = ignite()
-    server.port(port)
+    server.port(Environment.getPort())
     val mapper = jacksonObjectMapper()
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     with(server) {
-        post(path = "/check", accepts = "application/json") { json(mapper, time("check") { checkIfLightningExists(bodyRequest(mapper)) })  }
-        post(path = "/hits", accepts = "application/json")  { json(mapper, time("hits") { getLightningStrikes(bodyRequest(mapper)) })  }
-        post(path = "/dslam", accepts = "application/json") { json(mapper, time("dslam") { getDSLAMStations(bodyRequest(mapper)) })  }
+        post(path = "/check", accepts = "application/json") { json(mapper, time("check") { checkIfLightningExists(bodyRequest(mapper)) }) }
+        post(path = "/hits", accepts = "application/json") { json(mapper, time("hits") { getLightningStrikes(bodyRequest(mapper)) }) }
+        post(path = "/dslam", accepts = "application/json") { json(mapper, time("dslam") { getDSLAMStations(bodyRequest(mapper)) }) }
+        post(path = "/strike", accepts = "application/json") { json(mapper, time("strike") { addLightning(bodyRequest(mapper)) })}
         get(path = "/") { "Hello World" }
     }
 }
