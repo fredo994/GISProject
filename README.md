@@ -67,3 +67,34 @@ Api endpoints:
             "numberOfUsers" : Int 
         }
         ```
+4.
+    - path: /strike
+    - method: POST
+    - description: Records lightning strike at current time.
+    - request:
+        ```
+        {
+            "longitude" : Double,
+            "latitude" : Double,
+            "type" : "CLOUD_EARTH"|"CLOUD_CLOUD",
+            "amperage" : Double,
+            "height" : Int,
+            "locationError" : Int
+        }
+        ```
+    - response: 
+        ```
+        {
+            {
+                "timestamp": Long,
+                "type": "CLOUD_EARTH"|"CLOUD_CLOUD",
+                "amperage": Double,
+                "height": Int,
+                "locationError": Int,
+                "location": {
+                    "type": "Point",
+                    "coordinates": [Double, Double] # long, lat
+                }
+            }
+        }
+        ```
