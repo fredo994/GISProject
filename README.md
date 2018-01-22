@@ -9,14 +9,15 @@ Api endpoints:
 1. 
     - path: /hits
     - method: POST
-    - description: Gets list of DSLAM stations
+    - description: Gets list of Lightning strikes.
     - request:
         ```      
         {
             "longitude" : Double,
             "latitude"  : Double,
             "radius"    : Double|Int (meters)
-            "timestamp" : Long (miliseconds) 
+            "from" : Long (milliseconds),
+            "to" : Long (milliseconds) 
         } 
         ```
     - response:
@@ -24,7 +25,7 @@ Api endpoints:
         {
             "longitude" : Double,
             "latitude"  : Double,
-            "timestamp" : Long (miliseconds),
+            "timestamp" : Long (milliseconds),
             "type"      : String (CLOUD_CLOUD|CLOUD_EARTH)
         }
         ```
@@ -61,7 +62,7 @@ Api endpoints:
     - response:
         ```
         {
-            "name"          ¨: String,
+            "name"          : String,
             "longitude"     : Double,
             "latitude"      : Double,
             "numberOfUsers" : Int 

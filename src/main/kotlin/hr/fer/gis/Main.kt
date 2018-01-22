@@ -14,13 +14,14 @@ import com.mongodb.client.model.geojson.Position
 import org.litote.kmongo.createIndex
 import org.litote.kmongo.getCollection
 import org.litote.kmongo.toList
+import org.slf4j.LoggerFactory
 import spark.kotlin.RouteHandler
 import spark.kotlin.ignite
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 import java.util.stream.Stream
 
-private val log = Logger.getLogger("API")!!
+private val log = LoggerFactory.getLogger("API")!!
 private val dslamColl = Db.getDb().getCollection<DSLAM>(DSLAM_COLLECTION)
 private val slapColl = Db.getDb().getCollection<SLAP>(SLAP_COLLECTION)
 private val latRange = (-90.0).rangeTo(90.0)
@@ -66,35 +67,34 @@ data class LightningCheckReq(val longitude: Double, val latitude: Double, val ra
 data class LightningCheckResp(val hit: Boolean)
 
 fun checkIfLightningExists(checkReq: LightningCheckReq): LightningCheckResp {
-    val exists = slapColl.find(
-            and(
-                    gte("timestamp", now() - THREE_MINUTES),
-                    near(
-                            "location",
-                            Point(Position(checkReq.longitude, checkReq.latitude)),
-                            checkReq.radius,
-                            0.0
-                    )
-            )
-    ).limit(1).any()
+    val query =  and(
+            gte("timestamp", now() - THREE_MINUTES),
+            near(
+                    "location",
+                    Point(Position(checkReq.longitude, checkReq.latitude)),
+                    checkReq.radius,
+                    0.0
+            ))
+    log.info("Check if lightning strike exists collection query: $query")
+    val exists = slapColl.find(query).limit(1).any()
     return LightningCheckResp(exists)
 }
 
-data class LightningStrikesReq(val longitude: Double, val latitude: Double, val radius: Double, val timestamp: Long)
+data class LightningStrikesReq(
+        val longitude: Double,
+        val latitude: Double,
+        val radius: Double,
+        val from: Long,
+        val to: Long)
 data class LightningStrikeRespEntry(val longitude: Double, val latitude: Double, val timestamp: Long, val type: LightningStrike)
 
 fun getLightningStrikes(req: LightningStrikesReq): List<LightningStrikeRespEntry> {
-    return slapColl.find(
-            and(
-                    gte("timestamp", req.timestamp),
-                    lt("timestamp", req.timestamp + TimeUnit.MINUTES.toMillis(10)),
-                    near(
-                            "location",
-                            Point(Position(req.longitude, req.latitude)),
-                            req.radius,
-                            0.0
-                    )
-            ))
+    val query = and(
+            gte("timestamp", req.from),
+            lt("timestamp", req.to),
+            near("location", Point(Position(req.longitude, req.latitude)), req.radius, 0.0))
+    log.info("Get lightning strikes collection query: $query")
+    return slapColl.find(query)
             .map { LightningStrikeRespEntry(it.location.longitude(), it.location.latitude(), it.timestamp, it.type) }
             .toList()
 }
@@ -103,14 +103,9 @@ data class DSLAMStationsReq(val longitude: Double, val latitude: Double, val rad
 data class DSLAMStationRespEntry(val name: String, val longitude: Double, val latitude: Double, val numberOfUsers: Int)
 
 fun getDSLAMStations(req: DSLAMStationsReq): List<DSLAMStationRespEntry> {
-    return dslamColl.find(
-            near(
-                    "location",
-                    Point(Position(req.longitude, req.latitude)),
-                    req.radius,
-                    0.0
-            )
-    ).map {
+    val query =  near("location", Point(Position(req.longitude, req.latitude)), req.radius, 0.0)
+    log.info("Get DSLAMS stations query: $query")
+    return dslamColl.find(query).map {
         DSLAMStationRespEntry(it.name, it.location.longitude(), it.location.latitude(), it.userCount)
     }.toList()
 }
@@ -133,6 +128,7 @@ fun addLightning(req: LightningAddReq): SLAP {
             locationError = req.locationError,
             location = Location (req.longitude, req.latitude)
     )
+    log.info("Inserting strike: $strike")
     slapColl.insertOne(strike)
     return strike
 }
