@@ -76,9 +76,7 @@ fun checkIfLightningExists(checkReq: LightningCheckReq): LightningCheckResp {
                             0.0
                     )
             )
-    ).projection(Projections.include("_id"))
-            .limit(1)
-            .any()
+    ).limit(1).any()
     return LightningCheckResp(exists)
 }
 
@@ -146,11 +144,16 @@ fun RouteHandler.json(mapper: ObjectMapper, value: Any): String {
 }
 
 fun <O> time(name: String = "", func: () -> O): O {
-    val s = now()
-    val result = func()
-    val e = now()
-    log.info("Duration of $name: ${e - s} ms")
-    return result
+    try {
+        val s = now()
+        val result = func()
+        val e = now()
+        log.info("Duration of $name: ${e - s} ms")
+        return result
+    } catch (e: Exception) {
+        log.info("Got exception $e")
+        throw e;
+    }
 }
 
 fun getPort() = System.getenv(HTTP_PORT)?.toInt() ?: 8080
